@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRTB Market Risk Calculator - Production</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0A0E1A;
+            --bg-secondary: #141827;
+            --bg-tertiary: #1E2435;
+            --border: #2A3142;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --accent-blue: #3B82F6;
+            --accent-cyan: #06B6D4;
+            --accent-green: #10B981;
+            --accent-orange: #F59E0B;
+            --accent-red: #EF4444;
+            --accent-purple: #8B5CF6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .app-container {
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+        }
+
+        .header-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .version-badge {
+            background: var(--accent-blue);
+            color: white;
+            padding: 0.375rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .main-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .upload-section {
+            background: var(--bg-secondary);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+
+        .upload-section:hover {
+            border-color: var(--accent-blue);
+            background: var(--bg-tertiary);
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-subtext {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 0.875rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .scenario-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 12px;
+        }
+
+        .scenario-btn {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .scenario-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .comparison-table {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .comparison-table tr.selected {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .winner-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--accent-green);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 6px;
+            margin-left: 0.5rem;
+        }
+
+        .matrix-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+
+        .matrix-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 2px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+        }
+
+        .matrix-table th {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .matrix-table th:first-child {
+            text-align: left;
+            min-width: 120px;
+        }
+
+        .matrix-table td {
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            text-align: center;
+        }
+
+        .matrix-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .correlation-cell {
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .correlation-cell:hover {
+            transform: scale(1.1);
+        }
+
+        .risk-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .breakdown-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .breakdown-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .breakdown-header {
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .bucket-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .breakdown-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .expand-icon {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .breakdown-card:hover .expand-icon {
+            color: var(--accent-blue);
+            transform: translateX(4px);
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .breakdown-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 2rem;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 1400px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--accent-red);
+        }
+
+        .trades-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .trades-table th {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 0.875rem;
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        .trades-table td {
+            padding: 0.875rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.875rem;
+        }
+
+        .trades-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .info-box {
+            background: var(--bg-tertiary);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .info-box h3 {
+            color: var(--accent-blue);
+            font-size: 1.125rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .positive {
+            color: var(--accent-green);
+        }
+
+        .negative {
+            color: var(--accent-red);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .metrics-grid,
+            .risk-breakdown {
+                grid-template-columns: 1fr;
+            }
+
+            .scenario-selector {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // BCBS 457 Risk Weights
+        const BUCKET_RISK_WEIGHTS = {
+            delta: {
+                1: 0.55, 2: 0.60, 3: 0.45, 4: 0.55,
+                5: 0.30, 6: 0.35, 7: 0.40, 8: 0.50,
+                9: 0.70, 10: 0.50, 11: 0.70,
+                12: 0.15, 13: 0.25
+            },
+            vega: 0.55,
+            // ✅ MAR21.98: Curvature RW = Delta RW
+            curvature: {
+                1: 0.55, 2: 0.60, 3: 0.45, 4: 0.55,
+                5: 0.30, 6: 0.35, 7: 0.40, 8: 0.50,
+                9: 0.70, 10: 0.50, 11: 0.70,
+                12: 0.15, 13: 0.25
+            }
+        };
+
+        // Vega maturity correlation - BCBS 457 MAR21.84
+        // ρ(kl) = e^(-α * |T(k) - T(l)| / min(T(k), T(l)))
+        function getVegaMaturityCorrelation(tenor1, tenor2) {
+            if (tenor1 === tenor2) return 1.0;
+            
+            const tenorYears = {
+                '1Y': 1, '3Y': 3, '5Y': 5, '10Y': 10
+            };
+            
+            const t1 = tenorYears[tenor1];
+            const t2 = tenorYears[tenor2];
+            
+            // BCBS 457 MAR21.84: α = 0.01 for equity vega
+            const alpha = 0.01;
+            const correlation = Math.exp(-alpha * Math.abs(t1 - t2) / Math.min(t1, t2));
+            
+            return correlation;
+        }
+
+        // Correlations
+        const CORRELATIONS = {
+            intraBucket: {
+                same: 0.99,
+                different: {
+                    base: 0.15,
+                    sameCap: 0.25
+                }
+            },
+            interBucket: {
+                default: 0.15,
+                bucket11: 0
+            }
+        };
+
+        const SCENARIOS = {
+            high: 1.25,
+            medium: 1.0,
+            low: 0.75
+        };
+
+        // BCBS 457 MAR21.72 - Equity Bucket Definitions
+        const BUCKET_NAMES = {
+            1: 'EM Large-Consumer/Health/Utils',
+            2: 'EM Large-Telecom/Industrials',
+            3: 'EM Large-Basic/Energy',
+            4: 'EM Large-Financials/RE/Tech',
+            5: 'DM Large-Consumer/Health/Utils',
+            6: 'DM Large-Telecom/Industrials',
+            7: 'DM Large-Basic/Energy',
+            8: 'DM Large-Financials/RE/Tech',
+            9: 'EM Small-All Sectors',
+            10: 'DM Small-All Sectors',
+            11: 'Other Sector',
+            12: 'Large DM Indices',
+            13: 'Other Indices'
+        };
+
+        function getIntraBucketCorrelation(trade1, trade2) {
+            if (trade1.Instrument === trade2.Instrument) {
+                return CORRELATIONS.intraBucket.same;
+            }
+            if (trade1.MarketCap === trade2.MarketCap) {
+                return CORRELATIONS.intraBucket.different.sameCap;
+            }
+            return CORRELATIONS.intraBucket.different.base;
+        }
+
+        function getInterBucketCorrelation(bucket1, bucket2) {
+            if (bucket1 === bucket2) return 1.0;
+            const b1 = parseInt(bucket1);
+            const b2 = parseInt(bucket2);
+            if (b1 === 11 || b2 === 11) return 0;
+            return CORRELATIONS.interBucket.default;
+        }
+
+        function calculateFRTB(trades, scenario = 'medium') {
+            if (!trades || trades.length === 0) return null;
+
+            const scenarioMultiplier = SCENARIOS[scenario];
+            const buckets = {};
+
+            trades.forEach(trade => {
+                // Use bucket from CSV (which correctly assigns 1-13)
+                const bucket = trade.Bucket || '11';
+                
+                if (!buckets[bucket]) {
+                    buckets[bucket] = {
+                        trades: [],
+                        deltaWS: {},
+                        vegaWS: {},
+                        curvatureWS: {},
+                        deltaNet: 0,
+                        deltaGross: 0,
+                        vegaByTenor: { '1Y': 0, '3Y': 0, '5Y': 0, '10Y': 0 },
+                        curvatureNet: 0
+                    };
+                }
+                
+                const delta = parseFloat(trade.Delta) || 0;
+                const bucketId = parseInt(bucket);
+                const deltaRW = BUCKET_RISK_WEIGHTS.delta[bucketId] || 0.55;
+                const wsDelta = delta * deltaRW;
+                
+                buckets[bucket].trades.push(trade);
+                buckets[bucket].deltaWS[trade.Instrument] = wsDelta;
+                buckets[bucket].deltaNet += wsDelta;
+                buckets[bucket].deltaGross += Math.abs(wsDelta);
+                
+                // Vega
+                const vega1Y = (parseFloat(trade.Vega1Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
+                const vega3Y = (parseFloat(trade.Vega3Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
+                const vega5Y = (parseFloat(trade.Vega5Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
+                const vega10Y = (parseFloat(trade.Vega10Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
+                
+                if (!buckets[bucket].vegaWS[trade.Instrument]) {
+                    buckets[bucket].vegaWS[trade.Instrument] = {};
+                }
+                buckets[bucket].vegaWS[trade.Instrument]['1Y'] = vega1Y;
+                buckets[bucket].vegaWS[trade.Instrument]['3Y'] = vega3Y;
+                buckets[bucket].vegaWS[trade.Instrument]['5Y'] = vega5Y;
+                buckets[bucket].vegaWS[trade.Instrument]['10Y'] = vega10Y;
+                
+                buckets[bucket].vegaByTenor['1Y'] += vega1Y;
+                buckets[bucket].vegaByTenor['3Y'] += vega3Y;
+                buckets[bucket].vegaByTenor['5Y'] += vega5Y;
+                buckets[bucket].vegaByTenor['10Y'] += vega10Y;
+                
+                // Curvature - use CSV values if available
+                let curvature;
+                if (trade.CurvatureUp !== undefined && trade.CurvatureDown !== undefined) {
+                    const curvUp = parseFloat(trade.CurvatureUp) || 0;
+                    const curvDown = parseFloat(trade.CurvatureDown) || 0;
+                    curvature = Math.max(curvUp, curvDown, 0);
+                } else {
+                    curvature = Math.max(0, -delta * 0.01);
+                }
+                
+                const curvRW = BUCKET_RISK_WEIGHTS.curvature[bucketId] || 0.55;
+                const wsCurvature = curvature * curvRW;
+                buckets[bucket].curvatureWS[trade.Instrument] = wsCurvature;
+                buckets[bucket].curvatureNet += wsCurvature;
+            });
+
+            const intraBucketCharges = { delta: {}, vega: {}, curvature: {} };
+            
+            Object.keys(buckets).forEach(bucketId => {
+                const bucket = buckets[bucketId];
+                const tradesList = bucket.trades;
+                
+                // Delta
+                let deltaSum = 0;
+                for (let i = 0; i < tradesList.length; i++) {
+                    for (let j = 0; j < tradesList.length; j++) {
+                        const rho = getIntraBucketCorrelation(tradesList[i], tradesList[j]) * scenarioMultiplier;
+                        const ws_i = bucket.deltaWS[tradesList[i].Instrument];
+                        const ws_j = bucket.deltaWS[tradesList[j].Instrument];
+                        deltaSum += rho * ws_i * ws_j;
+                    }
+                }
+                intraBucketCharges.delta[bucketId] = Math.sqrt(Math.max(0, deltaSum));
+                
+                // Vega with maturity correlation
+                let vegaSum = 0;
+                const tenors = ['1Y', '3Y', '5Y', '10Y'];
+                
+                for (let i = 0; i < tradesList.length; i++) {
+                    for (let j = 0; j < tradesList.length; j++) {
+                        const rhoUnderlying = getIntraBucketCorrelation(tradesList[i], tradesList[j]);
+                        
+                        for (let ti = 0; ti < tenors.length; ti++) {
+                            for (let tj = 0; tj < tenors.length; tj++) {
+                                const rhoMaturity = getVegaMaturityCorrelation(tenors[ti], tenors[tj]);
+                                const rho = rhoUnderlying * rhoMaturity * scenarioMultiplier;
+                                
+                                const ws_i = bucket.vegaWS[tradesList[i].Instrument][tenors[ti]];
+                                const ws_j = bucket.vegaWS[tradesList[j].Instrument][tenors[tj]];
+                                
+                                vegaSum += rho * ws_i * ws_j;
+                            }
+                        }
+                    }
+                }
+                intraBucketCharges.vega[bucketId] = Math.sqrt(Math.max(0, vegaSum));
+                
+                // Curvature
+                let curvatureSum = 0;
+                for (let i = 0; i < tradesList.length; i++) {
+                    for (let j = 0; j < tradesList.length; j++) {
+                        const rho = getIntraBucketCorrelation(tradesList[i], tradesList[j]) * scenarioMultiplier;
+                        const ws_i = bucket.curvatureWS[tradesList[i].Instrument];
+                        const ws_j = bucket.curvatureWS[tradesList[j].Instrument];
+                        curvatureSum += rho * ws_i * ws_j;
+                    }
+                }
+                intraBucketCharges.curvature[bucketId] = Math.sqrt(Math.max(0, curvatureSum));
+            });
+
+            function aggregateInterBucket(charges) {
+                const bucketIds = Object.keys(charges);
+                let sum = 0;
+                
+                for (let i = 0; i < bucketIds.length; i++) {
+                    for (let j = 0; j < bucketIds.length; j++) {
+                        const gamma = getInterBucketCorrelation(bucketIds[i], bucketIds[j]) * scenarioMultiplier;
+                        const s_i = charges[bucketIds[i]];
+                        const s_j = charges[bucketIds[j]];
+                        sum += gamma * s_i * s_j;
+                    }
+                }
+                
+                return Math.sqrt(Math.max(0, sum));
+            }
+
+            const totalDeltaCharge = aggregateInterBucket(intraBucketCharges.delta);
+            const totalVegaCharge = aggregateInterBucket(intraBucketCharges.vega);
+            const totalCurvatureCharge = aggregateInterBucket(intraBucketCharges.curvature);
+            const totalCapitalCharge = totalDeltaCharge + totalVegaCharge + totalCurvatureCharge;
+
+            return {
+                buckets,
+                intraBucketCharges,
+                totalDeltaCharge,
+                totalVegaCharge,
+                totalCurvatureCharge,
+                totalCapitalCharge,
+                scenario
+            };
+        }
+
+        function FRTBCalculator() {
+            const [trades, setTrades] = useState([]);
+            const [results, setResults] = useState(null);
+            const [allScenarioResults, setAllScenarioResults] = useState(null);
+            const [scenario, setScenario] = useState('medium');
+            const [activeTab, setActiveTab] = useState('comparison');
+            const [selectedBucket, setSelectedBucket] = useState(null);
+            const [modalType, setModalType] = useState(null);
+
+            useEffect(() => {
+                if (trades.length > 0) {
+                    const lowResult = calculateFRTB(trades, 'low');
+                    const mediumResult = calculateFRTB(trades, 'medium');
+                    const highResult = calculateFRTB(trades, 'high');
+                    
+                    setAllScenarioResults({
+                        low: lowResult,
+                        medium: mediumResult,
+                        high: highResult
+                    });
+                    
+                    setResults(scenario === 'low' ? lowResult : scenario === 'medium' ? mediumResult : highResult);
+                }
+            }, [trades, scenario]);
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                Papa.parse(file, {
+                    header: true,
+                    complete: (result) => {
+                        setTrades(result.data.filter(row => row.TradeID));
+                    },
+                    error: (error) => {
+                        console.error('Error parsing CSV:', error);
+                    }
+                });
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.name.endsWith('.csv')) {
+                        Papa.parse(file, {
+                            header: true,
+                            complete: (result) => {
+                                setTrades(result.data.filter(row => row.TradeID));
+                            },
+                            error: (error) => {
+                                console.error('Error parsing CSV:', error);
+                            }
+                        });
+                    } else {
+                        alert('Please upload a CSV file');
+                    }
+                }
+            };
+
+            const formatCurrency = (value) => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                }).format(value);
+            };
+
+            const getCorrelationColor = (value) => {
+                if (value === 1) return 'rgba(59, 130, 246, 0.9)';
+                if (value >= 0.75) return 'rgba(139, 92, 246, 0.8)';
+                if (value >= 0.5) return 'rgba(16, 185, 129, 0.6)';
+                if (value >= 0.25) return 'rgba(245, 158, 11, 0.5)';
+                if (value > 0) return 'rgba(100, 116, 139, 0.4)';
+                return 'rgba(30, 41, 59, 0.3)';
+            };
+
+            const openModal = (bucket, type) => {
+                setSelectedBucket(bucket);
+                setModalType(type);
+            };
+
+            const closeModal = () => {
+                setSelectedBucket(null);
+                setModalType(null);
+            };
+
+            if (!results || !allScenarioResults) {
+                return (
+                    <div className="app-container">
+                        <header>
+                            <div className="header-content">
+                                <h1>FRTB Market Risk Calculator</h1>
+                                <span className="version-badge">PRODUCTION v1.0</span>
+                            </div>
+                        </header>
+                        <div className="main-content">
+                            <div 
+                                className="upload-section" 
+                                onClick={() => document.getElementById('file-upload').click()}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                            >
+                                <div className="upload-icon">📊</div>
+                                <h3 style={{marginBottom: '0.5rem'}}>Upload Equity Trades CSV</h3>
+                                <p style={{color: 'var(--text-secondary)', fontSize: '0.875rem'}}>
+                                    Click or drag & drop CSV file
+                                </p>
+                                <p style={{color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.5rem'}}>
+                                    Required: TradeID, Instrument, Sector, MarketCap, Economy, Delta, Vega1Y, Vega3Y, Vega5Y, Vega10Y, CurvatureUp, CurvatureDown, Spot, Volatility
+                                </p>
+                                <input
+                                    id="file-upload"
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleFileUpload}
+                                    style={{display: 'none'}}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const maxTotalCharge = Math.max(
+                allScenarioResults.low.totalCapitalCharge,
+                allScenarioResults.medium.totalCapitalCharge,
+                allScenarioResults.high.totalCapitalCharge
+            );
+            const winningScenario = 
+                allScenarioResults.high.totalCapitalCharge === maxTotalCharge ? 'high' :
+                allScenarioResults.medium.totalCapitalCharge === maxTotalCharge ? 'medium' : 'low';
+
+            const bucketNames = Object.keys(results.buckets).map(b => ({
+                id: b,
+                name: BUCKET_NAMES[b] || `Bucket ${b}`
+            }));
+
+            return (
+                <div className="app-container">
+                    <header>
+                        <div className="header-content">
+                            <h1>FRTB Market Risk Calculator</h1>
+                            <span className="version-badge">PRODUCTION v1.0</span>
+                        </div>
+                    </header>
+                    
+                    <div className="main-content">
+                        <div className="scenario-selector">
+                            <button 
+                                className={`scenario-btn ${scenario === 'low' ? 'active' : ''}`}
+                                onClick={() => setScenario('low')}
+                            >
+                                Low (0.75x)
+                            </button>
+                            <button 
+                                className={`scenario-btn ${scenario === 'medium' ? 'active' : ''}`}
+                                onClick={() => setScenario('medium')}
+                            >
+                                Medium (1.0x)
+                            </button>
+                            <button 
+                                className={`scenario-btn ${scenario === 'high' ? 'active' : ''}`}
+                                onClick={() => setScenario('high')}
+                            >
+                                High (1.25x)
+                            </button>
+                        </div>
+
+                        <div className="tabs">
+                            <button 
+                                className={`tab ${activeTab === 'comparison' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('comparison')}
+                            >
+                                Scenario Comparison
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'correlation' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('correlation')}
+                            >
+                                Inter-Bucket Correlation
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'vega-intra' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('vega-intra')}
+                            >
+                                Vega Intra-Bucket
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'delta-intra' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('delta-intra')}
+                            >
+                                Delta Intra-Bucket
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'curvature-intra' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('curvature-intra')}
+                            >
+                                Curvature Intra-Bucket
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'delta' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('delta')}
+                            >
+                                Delta Risk
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'vega' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('vega')}
+                            >
+                                Vega Risk
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'curvature' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('curvature')}
+                            >
+                                Curvature Risk
+                            </button>
+                        </div>
+
+                        {/* Scenario Comparison Tab */}
+                        {activeTab === 'comparison' && (
+                            <>
+                                <h2 className="section-title">Three Correlation Scenarios (BCBS 457)</h2>
+                                
+                                <div className="comparison-table">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Scenario</th>
+                                                <th>Multiplier</th>
+                                                <th>Delta</th>
+                                                <th>Vega</th>
+                                                <th>Curvature</th>
+                                                <th>Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr className={winningScenario === 'low' ? 'selected' : ''}>
+                                                <td><strong>Low</strong></td>
+                                                <td>0.75x</td>
+                                                <td>{formatCurrency(allScenarioResults.low.totalDeltaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.low.totalVegaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.low.totalCurvatureCharge)}</td>
+                                                <td>
+                                                    <strong>{formatCurrency(allScenarioResults.low.totalCapitalCharge)}</strong>
+                                                    {winningScenario === 'low' && <span className="winner-badge">SELECTED</span>}
+                                                </td>
+                                            </tr>
+                                            <tr className={winningScenario === 'medium' ? 'selected' : ''}>
+                                                <td><strong>Medium</strong></td>
+                                                <td>1.0x</td>
+                                                <td>{formatCurrency(allScenarioResults.medium.totalDeltaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.medium.totalVegaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.medium.totalCurvatureCharge)}</td>
+                                                <td>
+                                                    <strong>{formatCurrency(allScenarioResults.medium.totalCapitalCharge)}</strong>
+                                                    {winningScenario === 'medium' && <span className="winner-badge">SELECTED</span>}
+                                                </td>
+                                            </tr>
+                                            <tr className={winningScenario === 'high' ? 'selected' : ''}>
+                                                <td><strong>High</strong></td>
+                                                <td>1.25x</td>
+                                                <td>{formatCurrency(allScenarioResults.high.totalDeltaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.high.totalVegaCharge)}</td>
+                                                <td>{formatCurrency(allScenarioResults.high.totalCurvatureCharge)}</td>
+                                                <td>
+                                                    <strong>{formatCurrency(allScenarioResults.high.totalCapitalCharge)}</strong>
+                                                    {winningScenario === 'high' && <span className="winner-badge">SELECTED</span>}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="metrics-grid">
+                                    <div className="metric-card">
+                                        <div className="metric-label">Final Capital Charge</div>
+                                        <div className="metric-value" style={{color: 'var(--accent-blue)'}}>
+                                            {formatCurrency(maxTotalCharge)}
+                                        </div>
+                                        <div className="metric-subtext">Maximum of three scenarios</div>
+                                    </div>
+                                    <div className="metric-card">
+                                        <div className="metric-label">Delta Component</div>
+                                        <div className="metric-value" style={{color: 'var(--accent-green)'}}>
+                                            {((results.totalDeltaCharge / results.totalCapitalCharge) * 100).toFixed(1)}%
+                                        </div>
+                                        <div className="metric-subtext">{formatCurrency(results.totalDeltaCharge)}</div>
+                                    </div>
+                                    <div className="metric-card">
+                                        <div className="metric-label">Vega Component</div>
+                                        <div className="metric-value" style={{color: 'var(--accent-purple)'}}>
+                                            {((results.totalVegaCharge / results.totalCapitalCharge) * 100).toFixed(1)}%
+                                        </div>
+                                        <div className="metric-subtext">{formatCurrency(results.totalVegaCharge)}</div>
+                                    </div>
+                                    <div className="metric-card">
+                                        <div className="metric-label">Curvature Component</div>
+                                        <div className="metric-value" style={{color: 'var(--accent-orange)'}}>
+                                            {((results.totalCurvatureCharge / results.totalCapitalCharge) * 100).toFixed(1)}%
+                                        </div>
+                                        <div className="metric-subtext">{formatCurrency(results.totalCurvatureCharge)}</div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Inter-Bucket Correlation Tab */}
+                        {activeTab === 'correlation' && (
+                            <>
+                                <h2 className="section-title">Inter-Bucket Correlation Matrices</h2>
+                                
+                                {['delta', 'vega', 'curvature'].map(riskType => (
+                                    <div key={riskType} className="matrix-container">
+                                        <h3 style={{marginBottom: '1rem', textTransform: 'capitalize', color: 'var(--accent-blue)'}}>
+                                            {riskType} Risk
+                                        </h3>
+                                        <table className="matrix-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bucket</th>
+                                                    <th>Kb</th>
+                                                    {bucketNames.map(({ id, name }) => (
+                                                        <th key={id}>{name}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {bucketNames.map(({ id: id1, name: name1 }) => (
+                                                    <tr key={id1}>
+                                                        <td>{name1}</td>
+                                                        <td style={{fontWeight: 700, color: 'var(--accent-blue)'}}>
+                                                            {formatCurrency(results.intraBucketCharges[riskType][id1])}
+                                                        </td>
+                                                        {bucketNames.map(({ id: id2 }) => {
+                                                            const corr = getInterBucketCorrelation(id1, id2) * SCENARIOS[scenario];
+                                                            return (
+                                                                <td 
+                                                                    key={id2}
+                                                                    className="correlation-cell"
+                                                                    style={{
+                                                                        background: getCorrelationColor(corr),
+                                                                        color: corr >= 0.75 ? 'white' : 'var(--text-primary)'
+                                                                    }}
+                                                                >
+                                                                    {corr.toFixed(2)}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {/* Vega Intra-Bucket Tab */}
+                        {activeTab === 'vega-intra' && (
+                            <>
+                                <h2 className="section-title">Vega Intra-Bucket Correlation Matrices</h2>
+                                
+                                <div className="info-box">
+                                    <h3>Vega Correlation Formula</h3>
+                                    <div style={{fontFamily: 'JetBrains Mono', marginTop: '0.5rem'}}>
+                                        ρ(k,l) = ρ_underlying × ρ_maturity × scenario_multiplier
+                                    </div>
+                                    <p style={{fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-secondary)'}}>
+                                        Where ρ_underlying = 99% (same equity), 25% (same cap), or 15% (different cap)<br/>
+                                        And ρ_maturity = correlation between option tenors (100%, 65%, 55%, or 40%)
+                                    </p>
+                                </div>
+
+                                {bucketNames.map(({ id, name }) => {
+                                    const bucket = results.buckets[id];
+                                    if (bucket.trades.length === 0) return null;
+                                    
+                                    const instruments = bucket.trades.map(t => t.Instrument);
+                                    const tenors = ['1Y', '3Y', '5Y', '10Y'];
+                                    const vegaRW = BUCKET_RISK_WEIGHTS.vega;
+                                    
+                                    // Calculate net weighted vega per instrument-tenor combination
+                                    const instrumentTenorNets = {};
+                                    bucket.trades.forEach(trade => {
+                                        const instrument = trade.Instrument;
+                                        tenors.forEach(tenor => {
+                                            const key = `${instrument}-${tenor}`;
+                                            const vega = parseFloat(trade[`Vega${tenor}`]) || 0;
+                                            const weightedVega = vega * vegaRW;
+                                            
+                                            if (!instrumentTenorNets[key]) {
+                                                instrumentTenorNets[key] = 0;
+                                            }
+                                            instrumentTenorNets[key] += weightedVega;
+                                        });
+                                    });
+                                    
+                                    return (
+                                        <div key={id} className="matrix-container">
+                                            <h3 style={{marginBottom: '1rem', color: 'var(--accent-purple)'}}>
+                                                Bucket {id}: {name}
+                                            </h3>
+                                            <div style={{overflowX: 'auto'}}>
+                                                <table className="matrix-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Trade × Tenor</th>
+                                                            <th style={{background: 'var(--accent-purple)', color: 'white'}}>Net WS</th>
+                                                            {bucket.trades.flatMap(t => 
+                                                                tenors.map(tenor => (
+                                                                    <th key={`${t.Instrument}-${tenor}`}>
+                                                                        {t.Instrument}<br/><span style={{fontSize: '0.7rem'}}>{tenor}</span>
+                                                                    </th>
+                                                                ))
+                                                            )}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.flatMap((trade1) => 
+                                                            tenors.map((tenor1) => (
+                                                                <tr key={`${trade1.Instrument}-${tenor1}`}>
+                                                                    <td>
+                                                                        {trade1.Instrument} <span style={{color: 'var(--text-muted)'}}>{tenor1}</span>
+                                                                    </td>
+                                                                    <td style={{
+                                                                        background: 'rgba(139, 92, 246, 0.1)',
+                                                                        fontWeight: '700',
+                                                                        color: 'var(--accent-purple)'
+                                                                    }}>
+                                                                        {formatCurrency(instrumentTenorNets[`${trade1.Instrument}-${tenor1}`] || 0)}
+                                                                    </td>
+                                                                    {bucket.trades.flatMap((trade2) => 
+                                                                        tenors.map((tenor2) => {
+                                                                            const rhoUnderlying = getIntraBucketCorrelation(trade1, trade2);
+                                                                            const rhoMaturity = getVegaMaturityCorrelation(tenor1, tenor2);
+                                                                            const rho = rhoUnderlying * rhoMaturity * SCENARIOS[scenario];
+                                                                            
+                                                                            return (
+                                                                                <td 
+                                                                                    key={`${trade2.Instrument}-${tenor2}`}
+                                                                                    className="correlation-cell"
+                                                                                    style={{
+                                                                                        background: getCorrelationColor(rho),
+                                                                                        color: rho >= 0.75 ? 'white' : 'var(--text-primary)',
+                                                                                        fontSize: '0.75rem'
+                                                                                    }}
+                                                                                >
+                                                                                    {rho.toFixed(3)}
+                                                                                </td>
+                                                                            );
+                                                                        })
+                                                                    )}
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )}
+
+                        {/* Delta Intra-Bucket Tab */}
+                        {activeTab === 'delta-intra' && (
+                            <>
+                                <h2 className="section-title">Delta Intra-Bucket Correlation Matrices</h2>
+                                
+                                <div className="info-box">
+                                    <h3>Delta Intra-Bucket Correlation Formula</h3>
+                                    <div style={{fontFamily: 'JetBrains Mono', marginTop: '0.5rem'}}>
+                                        ρ(i,j) = ρ_underlying × scenario_multiplier
+                                    </div>
+                                    <p style={{fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-secondary)'}}>
+                                        Where ρ_underlying = 99% (same equity), 25% (same cap category within bucket), or 15% (different)
+                                    </p>
+                                </div>
+
+                                {bucketNames.map(({ id, name }) => {
+                                    const bucket = results.buckets[id];
+                                    if (bucket.trades.length === 0) return null;
+                                    
+                                    // Calculate net weighted delta per instrument
+                                    const deltaRW = BUCKET_RISK_WEIGHTS.delta[parseInt(id)] || 0.55;
+                                    const instrumentNets = {};
+                                    bucket.trades.forEach(trade => {
+                                        const instrument = trade.Instrument;
+                                        const delta = parseFloat(trade.Delta) || 0;
+                                        const weightedDelta = delta * deltaRW;
+                                        
+                                        if (!instrumentNets[instrument]) {
+                                            instrumentNets[instrument] = 0;
+                                        }
+                                        instrumentNets[instrument] += weightedDelta;
+                                    });
+                                    
+                                    return (
+                                        <div key={id} className="matrix-container">
+                                            <h3 style={{marginBottom: '1rem', color: 'var(--accent-green)'}}>
+                                                Bucket {id}: {name}
+                                            </h3>
+                                            <div style={{overflowX: 'auto'}}>
+                                                <table className="matrix-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Instrument</th>
+                                                            <th style={{background: 'var(--accent-cyan)', color: 'white'}}>Net WS</th>
+                                                            {bucket.trades.map(t => (
+                                                                <th key={t.Instrument}>{t.Instrument}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.map((trade1) => (
+                                                            <tr key={trade1.Instrument}>
+                                                                <td>{trade1.Instrument}</td>
+                                                                <td style={{
+                                                                    background: 'rgba(6, 182, 212, 0.1)',
+                                                                    fontWeight: '700',
+                                                                    color: instrumentNets[trade1.Instrument] >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
+                                                                }}>
+                                                                    {formatCurrency(instrumentNets[trade1.Instrument])}
+                                                                </td>
+                                                                {bucket.trades.map((trade2) => {
+                                                                    const rho = getIntraBucketCorrelation(trade1, trade2) * SCENARIOS[scenario];
+                                                                    
+                                                                    return (
+                                                                        <td 
+                                                                            key={trade2.Instrument}
+                                                                            className="correlation-cell"
+                                                                            style={{
+                                                                                background: getCorrelationColor(rho),
+                                                                                color: rho >= 0.75 ? 'white' : 'var(--text-primary)',
+                                                                                fontSize: '0.75rem'
+                                                                            }}
+                                                                        >
+                                                                            {rho.toFixed(3)}
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )}
+
+                        {/* Curvature Intra-Bucket Tab */}
+                        {activeTab === 'curvature-intra' && (
+                            <>
+                                <h2 className="section-title">Curvature Intra-Bucket Correlation Matrices</h2>
+                                
+                                <div className="info-box" style={{borderLeftColor: 'var(--accent-orange)'}}>
+                                    <h3 style={{color: 'var(--accent-orange)'}}>Curvature Correlation Formula</h3>
+                                    <div style={{fontFamily: 'JetBrains Mono', marginTop: '0.5rem'}}>
+                                        ρ(i,j) = ρ_underlying × scenario_multiplier
+                                    </div>
+                                    <p style={{fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-secondary)'}}>
+                                        Same as Delta: 99% (same equity), 25% (same cap), 15% (different)<br/>
+                                        Applied to curvature stress scenario aggregation
+                                    </p>
+                                </div>
+
+                                {bucketNames.map(({ id, name }) => {
+                                    const bucket = results.buckets[id];
+                                    if (bucket.trades.length === 0) return null;
+                                    
+                                    // Calculate net weighted curvature per instrument
+                                    const curvRW = BUCKET_RISK_WEIGHTS.curvature[parseInt(id)] || 0.55;
+                                    const instrumentNets = {};
+                                    bucket.trades.forEach(trade => {
+                                        const instrument = trade.Instrument;
+                                        const delta = parseFloat(trade.Delta) || 0;
+                                        
+                                        let curvature;
+                                        if (trade.CurvatureUp !== undefined && trade.CurvatureDown !== undefined) {
+                                            const curvUp = parseFloat(trade.CurvatureUp) || 0;
+                                            const curvDown = parseFloat(trade.CurvatureDown) || 0;
+                                            curvature = Math.max(curvUp, curvDown, 0);
+                                        } else {
+                                            curvature = Math.max(0, -delta * 0.01);
+                                        }
+                                        
+                                        const weightedCurvature = curvature * curvRW;
+                                        
+                                        if (!instrumentNets[instrument]) {
+                                            instrumentNets[instrument] = 0;
+                                        }
+                                        instrumentNets[instrument] += weightedCurvature;
+                                    });
+                                    
+                                    return (
+                                        <div key={id} className="matrix-container">
+                                            <h3 style={{marginBottom: '1rem', color: 'var(--accent-orange)'}}>
+                                                Bucket {id}: {name}
+                                            </h3>
+                                            <div style={{overflowX: 'auto'}}>
+                                                <table className="matrix-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Instrument</th>
+                                                            <th style={{background: 'var(--accent-orange)', color: 'white'}}>Net WS</th>
+                                                            {bucket.trades.map(t => (
+                                                                <th key={t.Instrument}>{t.Instrument}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.map((trade1) => (
+                                                            <tr key={trade1.Instrument}>
+                                                                <td>{trade1.Instrument}</td>
+                                                                <td style={{
+                                                                    background: 'rgba(251, 146, 60, 0.1)',
+                                                                    fontWeight: '700',
+                                                                    color: 'var(--accent-orange)'
+                                                                }}>
+                                                                    {formatCurrency(instrumentNets[trade1.Instrument])}
+                                                                </td>
+                                                                {bucket.trades.map((trade2) => {
+                                                                    const rho = getIntraBucketCorrelation(trade1, trade2) * SCENARIOS[scenario];
+                                                                    
+                                                                    return (
+                                                                        <td 
+                                                                            key={trade2.Instrument}
+                                                                            className="correlation-cell"
+                                                                            style={{
+                                                                                background: getCorrelationColor(rho),
+                                                                                color: rho >= 0.75 ? 'white' : 'var(--text-primary)',
+                                                                                fontSize: '0.75rem'
+                                                                            }}
+                                                                        >
+                                                                            {rho.toFixed(3)}
+                                                                        </td>
+                                                                    );
+                                                                })}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )}
+
+                        {/* Delta Risk Tab */}
+                        {activeTab === 'delta' && (
+                            <>
+                                <h2 className="section-title">Delta Risk by Bucket</h2>
+                                <div className="risk-breakdown">
+                                    {bucketNames.map(({ id, name }) => {
+                                        const bucket = results.buckets[id];
+                                        const charge = results.intraBucketCharges.delta[id];
+                                        return (
+                                            <div 
+                                                key={id} 
+                                                className="breakdown-card"
+                                                onClick={() => openModal(id, 'delta')}
+                                            >
+                                                <div className="breakdown-header">
+                                                    <div>
+                                                        <div className="bucket-badge">BUCKET {id}</div>
+                                                        <div className="breakdown-title">{name}</div>
+                                                    </div>
+                                                    <span className="expand-icon">→</span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Net Weighted Delta</span>
+                                                    <span className={`breakdown-value ${bucket.deltaNet >= 0 ? 'positive' : 'negative'}`}>
+                                                        {formatCurrency(bucket.deltaNet)}
+                                                    </span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Gross Weighted Delta</span>
+                                                    <span className="breakdown-value">
+                                                        {formatCurrency(bucket.deltaGross)}
+                                                    </span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Capital Charge (Kb)</span>
+                                                    <span className="breakdown-value" style={{color: 'var(--accent-blue)'}}>
+                                                        {formatCurrency(charge)}
+                                                    </span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Trades</span>
+                                                    <span className="breakdown-value">{bucket.trades.length}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Vega Risk Tab */}
+                        {activeTab === 'vega' && (
+                            <>
+                                <h2 className="section-title">Vega Risk by Bucket</h2>
+                                <div className="info-box" style={{borderLeftColor: 'var(--accent-purple)'}}>
+                                    <h3 style={{color: 'var(--accent-purple)'}}>ℹ️ Vega Intra-Bucket Aggregation</h3>
+                                    <p style={{fontSize: '0.875rem'}}>
+                                        Vega uses maturity correlation: ρ = ρ_underlying × ρ_maturity. 
+                                        See "Vega Intra-Bucket" tab for detailed correlation matrices.
+                                    </p>
+                                </div>
+                                <div className="risk-breakdown">
+                                    {bucketNames.map(({ id, name }) => {
+                                        const bucket = results.buckets[id];
+                                        const charge = results.intraBucketCharges.vega[id];
+                                        return (
+                                            <div 
+                                                key={id} 
+                                                className="breakdown-card"
+                                                onClick={() => openModal(id, 'vega')}
+                                            >
+                                                <div className="breakdown-header">
+                                                    <div>
+                                                        <div className="bucket-badge">BUCKET {id}</div>
+                                                        <div className="breakdown-title">{name}</div>
+                                                    </div>
+                                                    <span className="expand-icon">→</span>
+                                                </div>
+                                                {['1Y', '3Y', '5Y', '10Y'].map(tenor => (
+                                                    <div key={tenor} className="breakdown-item">
+                                                        <span className="breakdown-label">{tenor} Vega</span>
+                                                        <span className="breakdown-value">
+                                                            {formatCurrency(bucket.vegaByTenor[tenor])}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Capital Charge (Kb)</span>
+                                                    <span className="breakdown-value" style={{color: 'var(--accent-purple)'}}>
+                                                        {formatCurrency(charge)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Curvature Risk Tab */}
+                        {activeTab === 'curvature' && (
+                            <>
+                                <h2 className="section-title">Curvature Risk by Bucket</h2>
+                                <div className="info-box" style={{borderLeftColor: 'var(--accent-orange)'}}>
+                                    <h3 style={{color: 'var(--accent-orange)'}}>ℹ️ Curvature Calculation</h3>
+                                    <div style={{fontFamily: 'JetBrains Mono', fontSize: '0.875rem', marginTop: '0.5rem'}}>
+                                        CVR = max(CVR_up, CVR_down)<br/>
+                                        Weighted CVR = CVR × 55%
+                                    </div>
+                                    <p style={{fontSize: '0.875rem', marginTop: '0.5rem', color: 'var(--text-secondary)'}}>
+                                        Uses stress scenarios from CSV (CurvatureUp, CurvatureDown columns). 
+                                        Falls back to simplified formula if not provided.
+                                    </p>
+                                </div>
+                                <div className="risk-breakdown">
+                                    {bucketNames.map(({ id, name }) => {
+                                        const bucket = results.buckets[id];
+                                        const charge = results.intraBucketCharges.curvature[id];
+                                        return (
+                                            <div 
+                                                key={id} 
+                                                className="breakdown-card"
+                                                onClick={() => openModal(id, 'curvature')}
+                                            >
+                                                <div className="breakdown-header">
+                                                    <div>
+                                                        <div className="bucket-badge">BUCKET {id}</div>
+                                                        <div className="breakdown-title">{name}</div>
+                                                    </div>
+                                                    <span className="expand-icon">→</span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Net Curvature</span>
+                                                    <span className="breakdown-value" style={{color: 'var(--accent-orange)'}}>
+                                                        {formatCurrency(bucket.curvatureNet)}
+                                                    </span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Capital Charge (Kb)</span>
+                                                    <span className="breakdown-value" style={{color: 'var(--accent-orange)'}}>
+                                                        {formatCurrency(charge)}
+                                                    </span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Trades</span>
+                                                    <span className="breakdown-value">{bucket.trades.length}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Trade Detail Modal */}
+                        {selectedBucket && modalType && (
+                            <div className="modal-overlay" onClick={closeModal}>
+                                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">
+                                            Bucket {selectedBucket}: {BUCKET_NAMES[selectedBucket] || `Bucket ${selectedBucket}`} - {modalType.charAt(0).toUpperCase() + modalType.slice(1)} Trades
+                                        </h3>
+                                        <button className="close-btn" onClick={closeModal}>×</button>
+                                    </div>
+                                    
+                                    {modalType === 'delta' && (() => {
+                                        const bucket = results.buckets[selectedBucket];
+                                        if (!bucket || !bucket.trades || bucket.trades.length === 0) {
+                                            return <div style={{padding: '2rem', textAlign: 'center'}}>No trades found in this bucket.</div>;
+                                        }
+                                        
+                                        const rw = BUCKET_RISK_WEIGHTS.delta[parseInt(selectedBucket)] || 0.55;
+                                        
+                                        // Calculate net delta by instrument (sub-bucket)
+                                        const instrumentNets = {};
+                                        bucket.trades.forEach(trade => {
+                                            const instrument = trade.Instrument;
+                                            const delta = parseFloat(trade.Delta) || 0;
+                                            const weightedDelta = delta * rw;
+                                            
+                                            if (!instrumentNets[instrument]) {
+                                                instrumentNets[instrument] = {
+                                                    rawDelta: 0,
+                                                    weightedDelta: 0,
+                                                    count: 0
+                                                };
+                                            }
+                                            instrumentNets[instrument].rawDelta += delta;
+                                            instrumentNets[instrument].weightedDelta += weightedDelta;
+                                            instrumentNets[instrument].count += 1;
+                                        });
+                                        
+                                        return (
+                                            <>
+                                                {/* Net Delta by Instrument Summary */}
+                                                <div style={{marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '8px'}}>
+                                                    <h4 style={{marginBottom: '0.75rem', color: 'var(--accent-cyan)'}}>
+                                                        Net Delta by Instrument (Sub-Bucket)
+                                                    </h4>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.75rem'}}>
+                                                        {Object.entries(instrumentNets).map(([instrument, data]) => (
+                                                            <div key={instrument} style={{
+                                                                padding: '0.75rem',
+                                                                background: 'var(--bg-secondary)',
+                                                                borderRadius: '6px',
+                                                                borderLeft: `3px solid ${data.weightedDelta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+                                                            }}>
+                                                                <div style={{fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.25rem'}}>
+                                                                    {instrument} ({data.count} trade{data.count > 1 ? 's' : ''})
+                                                                </div>
+                                                                <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem'}}>
+                                                                    Raw: {formatCurrency(data.rawDelta)}
+                                                                </div>
+                                                                <div style={{fontSize: '1rem', fontWeight: '600', color: data.weightedDelta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}}>
+                                                                    Wtd: {formatCurrency(data.weightedDelta)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Detailed Trade Table */}
+                                                <h4 style={{marginBottom: '0.75rem', color: 'var(--text-secondary)'}}>
+                                                    Individual Trades
+                                                </h4>
+                                                <table className="trades-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Trade ID</th>
+                                                            <th>Instrument</th>
+                                                            <th>Delta</th>
+                                                            <th>Risk Weight</th>
+                                                            <th>Weighted Delta</th>
+                                                            <th>Spot</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.map(trade => {
+                                                            const delta = parseFloat(trade.Delta) || 0;
+                                                            const weightedDelta = delta * rw;
+                                                            
+                                                            return (
+                                                                <tr key={trade.TradeID}>
+                                                                    <td>{trade.TradeID}</td>
+                                                                    <td><strong>{trade.Instrument}</strong></td>
+                                                                    <td className={delta >= 0 ? 'positive' : 'negative'}>
+                                                                        {formatCurrency(delta)}
+                                                                    </td>
+                                                                    <td>{(rw * 100).toFixed(0)}%</td>
+                                                                    <td className={weightedDelta >= 0 ? 'positive' : 'negative'}>
+                                                                        <strong>{formatCurrency(weightedDelta)}</strong>
+                                                                    </td>
+                                                                    <td>${parseFloat(trade.Spot).toFixed(2)}</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </>
+                                        );
+                                    })()}
+
+                                    {modalType === 'vega' && (() => {
+                                        const bucket = results.buckets[selectedBucket];
+                                        if (!bucket || !bucket.trades || bucket.trades.length === 0) {
+                                            return <div style={{padding: '2rem', textAlign: 'center'}}>No trades found in this bucket.</div>;
+                                        }
+                                        
+                                        const rw = BUCKET_RISK_WEIGHTS.vega;
+                                        
+                                        // Calculate net vega by instrument and tenor
+                                        const instrumentNets = {};
+                                        bucket.trades.forEach(trade => {
+                                            const instrument = trade.Instrument;
+                                            const vega1Y = parseFloat(trade.Vega1Y) || 0;
+                                            const vega3Y = parseFloat(trade.Vega3Y) || 0;
+                                            const vega5Y = parseFloat(trade.Vega5Y) || 0;
+                                            const vega10Y = parseFloat(trade.Vega10Y) || 0;
+                                            
+                                            if (!instrumentNets[instrument]) {
+                                                instrumentNets[instrument] = {
+                                                    '1Y': 0, '3Y': 0, '5Y': 0, '10Y': 0,
+                                                    '1Y_wtd': 0, '3Y_wtd': 0, '5Y_wtd': 0, '10Y_wtd': 0,
+                                                    count: 0
+                                                };
+                                            }
+                                            instrumentNets[instrument]['1Y'] += vega1Y;
+                                            instrumentNets[instrument]['3Y'] += vega3Y;
+                                            instrumentNets[instrument]['5Y'] += vega5Y;
+                                            instrumentNets[instrument]['10Y'] += vega10Y;
+                                            instrumentNets[instrument]['1Y_wtd'] += vega1Y * rw;
+                                            instrumentNets[instrument]['3Y_wtd'] += vega3Y * rw;
+                                            instrumentNets[instrument]['5Y_wtd'] += vega5Y * rw;
+                                            instrumentNets[instrument]['10Y_wtd'] += vega10Y * rw;
+                                            instrumentNets[instrument].count += 1;
+                                        });
+                                        
+                                        return (
+                                            <>
+                                                <div style={{marginBottom: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.875rem'}}>
+                                                    <strong>Risk Weight:</strong> 55% applied to all vega sensitivities
+                                                </div>
+                                                
+                                                {/* Net Vega by Instrument Summary */}
+                                                <div style={{marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '8px'}}>
+                                                    <h4 style={{marginBottom: '0.75rem', color: 'var(--accent-purple)'}}>
+                                                        Net Vega by Instrument (Sub-Bucket)
+                                                    </h4>
+                                                    <table className="trades-table" style={{fontSize: '0.875rem'}}>
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Instrument</th>
+                                                                <th>1Y Net</th>
+                                                                <th>1Y Wtd</th>
+                                                                <th>3Y Net</th>
+                                                                <th>3Y Wtd</th>
+                                                                <th>5Y Net</th>
+                                                                <th>5Y Wtd</th>
+                                                                <th>10Y Net</th>
+                                                                <th>10Y Wtd</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {Object.entries(instrumentNets).map(([instrument, data]) => (
+                                                                <tr key={instrument}>
+                                                                    <td><strong>{instrument}</strong> ({data.count})</td>
+                                                                    <td className={data['1Y'] >= 0 ? 'positive' : 'negative'}>{formatCurrency(data['1Y'])}</td>
+                                                                    <td className={data['1Y_wtd'] >= 0 ? 'positive' : 'negative'}><strong>{formatCurrency(data['1Y_wtd'])}</strong></td>
+                                                                    <td className={data['3Y'] >= 0 ? 'positive' : 'negative'}>{formatCurrency(data['3Y'])}</td>
+                                                                    <td className={data['3Y_wtd'] >= 0 ? 'positive' : 'negative'}><strong>{formatCurrency(data['3Y_wtd'])}</strong></td>
+                                                                    <td className={data['5Y'] >= 0 ? 'positive' : 'negative'}>{formatCurrency(data['5Y'])}</td>
+                                                                    <td className={data['5Y_wtd'] >= 0 ? 'positive' : 'negative'}><strong>{formatCurrency(data['5Y_wtd'])}</strong></td>
+                                                                    <td className={data['10Y'] >= 0 ? 'positive' : 'negative'}>{formatCurrency(data['10Y'])}</td>
+                                                                    <td className={data['10Y_wtd'] >= 0 ? 'positive' : 'negative'}><strong>{formatCurrency(data['10Y_wtd'])}</strong></td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                
+                                                {/* Detailed Trade Table */}
+                                                <h4 style={{marginBottom: '0.75rem', color: 'var(--text-secondary)'}}>
+                                                    Individual Trades
+                                                </h4>
+                                                <table className="trades-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Trade ID</th>
+                                                            <th>Instrument</th>
+                                                            <th>1Y Vega</th>
+                                                            <th>1Y Wtd</th>
+                                                            <th>3Y Vega</th>
+                                                            <th>3Y Wtd</th>
+                                                            <th>5Y Vega</th>
+                                                            <th>5Y Wtd</th>
+                                                            <th>10Y Vega</th>
+                                                            <th>10Y Wtd</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.map(trade => {
+                                                            const vega1Y = parseFloat(trade.Vega1Y) || 0;
+                                                            const vega3Y = parseFloat(trade.Vega3Y) || 0;
+                                                            const vega5Y = parseFloat(trade.Vega5Y) || 0;
+                                                            const vega10Y = parseFloat(trade.Vega10Y) || 0;
+                                                            
+                                                            return (
+                                                                <tr key={trade.TradeID}>
+                                                                    <td>{trade.TradeID}</td>
+                                                                    <td><strong>{trade.Instrument}</strong></td>
+                                                                    <td>{formatCurrency(vega1Y)}</td>
+                                                                    <td><strong>{formatCurrency(vega1Y * rw)}</strong></td>
+                                                                    <td>{formatCurrency(vega3Y)}</td>
+                                                                    <td><strong>{formatCurrency(vega3Y * rw)}</strong></td>
+                                                                    <td>{formatCurrency(vega5Y)}</td>
+                                                                    <td><strong>{formatCurrency(vega5Y * rw)}</strong></td>
+                                                                    <td>{formatCurrency(vega10Y)}</td>
+                                                                    <td><strong>{formatCurrency(vega10Y * rw)}</strong></td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </>
+                                        );
+                                    })()}
+
+                                    {modalType === 'curvature' && (() => {
+                                        const bucket = results.buckets[selectedBucket];
+                                        if (!bucket || !bucket.trades || bucket.trades.length === 0) {
+                                            return <div style={{padding: '2rem', textAlign: 'center'}}>No trades found in this bucket.</div>;
+                                        }
+                                        
+                                        const rw = BUCKET_RISK_WEIGHTS.curvature[parseInt(selectedBucket)] || 0.55;
+                                        
+                                        // Calculate net curvature by instrument (sub-bucket)
+                                        const instrumentNets = {};
+                                        bucket.trades.forEach(trade => {
+                                            const instrument = trade.Instrument;
+                                            const curvUp = trade.CurvatureUp !== undefined ? (parseFloat(trade.CurvatureUp) || 0) : null;
+                                            const curvDown = trade.CurvatureDown !== undefined ? (parseFloat(trade.CurvatureDown) || 0) : null;
+                                            const delta = parseFloat(trade.Delta) || 0;
+                                            const curvature = curvUp !== null && curvDown !== null 
+                                                ? Math.max(curvUp, curvDown, 0)
+                                                : Math.max(0, -delta * 0.01);
+                                            const weightedCVR = curvature * rw;
+                                            
+                                            if (!instrumentNets[instrument]) {
+                                                instrumentNets[instrument] = {
+                                                    rawCVR: 0,
+                                                    weightedCVR: 0,
+                                                    count: 0
+                                                };
+                                            }
+                                            instrumentNets[instrument].rawCVR += curvature;
+                                            instrumentNets[instrument].weightedCVR += weightedCVR;
+                                            instrumentNets[instrument].count += 1;
+                                        });
+                                        
+                                        return (
+                                            <>
+                                                <div style={{marginBottom: '1rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.875rem'}}>
+                                                    <strong>Calculation:</strong> CVR = max(CVR_up, CVR_down) from CSV<br/>
+                                                    <strong>Risk Weight:</strong> {(rw * 100).toFixed(0)}% 
+                                                    <span style={{color: 'var(--accent-green)'}}> ✅ (equals delta RW per MAR21.98)</span>
+                                                </div>
+                                                
+                                                {/* Net Curvature by Instrument Summary */}
+                                                <div style={{marginBottom: '1.5rem', padding: '1rem', background: 'var(--bg-tertiary)', borderRadius: '8px'}}>
+                                                    <h4 style={{marginBottom: '0.75rem', color: 'var(--accent-orange)'}}>
+                                                        Net Curvature by Instrument (Sub-Bucket)
+                                                    </h4>
+                                                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.75rem'}}>
+                                                        {Object.entries(instrumentNets).map(([instrument, data]) => (
+                                                            <div key={instrument} style={{
+                                                                padding: '0.75rem',
+                                                                background: 'var(--bg-secondary)',
+                                                                borderRadius: '6px',
+                                                                borderLeft: `3px solid var(--accent-orange)`,
+                                                            }}>
+                                                                <div style={{fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.25rem'}}>
+                                                                    {instrument} ({data.count} trade{data.count > 1 ? 's' : ''})
+                                                                </div>
+                                                                <div style={{fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem'}}>
+                                                                    Raw CVR: {formatCurrency(data.rawCVR)}
+                                                                </div>
+                                                                <div style={{fontSize: '1rem', fontWeight: '600', color: 'var(--accent-orange)'}}>
+                                                                    Wtd CVR: {formatCurrency(data.weightedCVR)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Detailed Trade Table */}
+                                                <h4 style={{marginBottom: '0.75rem', color: 'var(--text-secondary)'}}>
+                                                    Individual Trades
+                                                </h4>
+                                                <table className="trades-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Trade ID</th>
+                                                            <th>Instrument</th>
+                                                            <th>Delta</th>
+                                                            <th>CVR Up</th>
+                                                            <th>CVR Down</th>
+                                                            <th>CVR</th>
+                                                            <th>Weighted CVR</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bucket.trades.map(trade => {
+                                                            const delta = parseFloat(trade.Delta) || 0;
+                                                            const curvUp = trade.CurvatureUp !== undefined ? (parseFloat(trade.CurvatureUp) || 0) : null;
+                                                            const curvDown = trade.CurvatureDown !== undefined ? (parseFloat(trade.CurvatureDown) || 0) : null;
+                                                            const curvature = curvUp !== null && curvDown !== null 
+                                                                ? Math.max(curvUp, curvDown, 0)
+                                                                : Math.max(0, -delta * 0.01);
+                                                            const weighted = curvature * rw;
+                                                            
+                                                            return (
+                                                                <tr key={trade.TradeID}>
+                                                                    <td>{trade.TradeID}</td>
+                                                                    <td><strong>{trade.Instrument}</strong></td>
+                                                                    <td className={delta >= 0 ? 'positive' : 'negative'}>
+                                                                        {formatCurrency(delta)}
+                                                                    </td>
+                                                                    <td>{curvUp !== null ? formatCurrency(curvUp) : '-'}</td>
+                                                                    <td>{curvDown !== null ? formatCurrency(curvDown) : '-'}</td>
+                                                                    <td style={{color: 'var(--accent-orange)'}}>
+                                                                        {formatCurrency(curvature)}
+                                                                    </td>
+                                                                    <td><strong style={{color: 'var(--accent-orange)'}}>
+                                                                        {formatCurrency(weighted)}
+                                                                    </strong></td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<FRTBCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
