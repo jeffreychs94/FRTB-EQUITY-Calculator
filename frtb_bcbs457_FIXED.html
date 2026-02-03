@@ -524,7 +524,17 @@
                 9: 0.70, 10: 0.50, 11: 0.70,
                 12: 0.15, 13: 0.25
             },
-            vega: 0.55,
+            // MAR21.92 Table 13: Equity Vega Risk Weights
+            // Based on liquidity horizon - see Footnote 24
+            vega: {
+                // Large cap: 77.78% (√(60/10) per liquidity horizon)
+                1: 0.7778, 2: 0.7778, 3: 0.7778, 4: 0.7778,
+                5: 0.7778, 6: 0.7778, 7: 0.7778, 8: 0.7778,
+                // Small cap and Other sector: 100%
+                9: 1.00, 10: 1.00, 11: 1.00,
+                // Indices: 77.78% (√(60/10) per liquidity horizon)
+                12: 0.7778, 13: 0.7778
+            },
             // ✅ MAR21.98: Curvature RW = Delta RW
             curvature: {
                 1: 0.55, 2: 0.60, 3: 0.45, 4: 0.55,
@@ -591,14 +601,30 @@
             13: 'Other Indices'
         };
 
-        function getIntraBucketCorrelation(trade1, trade2) {
+        // BCBS 457 MAR21.78 - Equity Intra-Bucket Correlations
+        function getIntraBucketCorrelation(trade1, trade2, bucket) {
+            // (a) Same equity: ρ = 99%
             if (trade1.Instrument === trade2.Instrument) {
-                return CORRELATIONS.intraBucket.same;
+                return 0.99;
             }
-            if (trade1.MarketCap === trade2.MarketCap) {
-                return CORRELATIONS.intraBucket.different.sameCap;
+            
+            const bucketId = parseInt(bucket);
+            
+            // (b) Buckets 1-10: Same category (within same bucket) but different equities: ρ = 25%
+            // (c) Buckets 1-10: Different categories (different buckets): ρ = 15%
+            //     Note: Since we're doing intra-bucket, all equities are in same bucket
+            //           so this is "same category" → 25%
+            if (bucketId >= 1 && bucketId <= 10) {
+                return 0.25;
             }
-            return CORRELATIONS.intraBucket.different.base;
+            
+            // (d) Buckets 11-13: Different equities: ρ = 15%
+            if (bucketId >= 11 && bucketId <= 13) {
+                return 0.15;
+            }
+            
+            // Fallback (should not reach here)
+            return 0.15;
         }
 
         function getInterBucketCorrelation(bucket1, bucket2) {
@@ -642,11 +668,12 @@
                 buckets[bucket].deltaNet += wsDelta;
                 buckets[bucket].deltaGross += Math.abs(wsDelta);
                 
-                // Vega
-                const vega1Y = (parseFloat(trade.Vega1Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
-                const vega3Y = (parseFloat(trade.Vega3Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
-                const vega5Y = (parseFloat(trade.Vega5Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
-                const vega10Y = (parseFloat(trade.Vega10Y) || 0) * BUCKET_RISK_WEIGHTS.vega;
+                // Vega - MAR21.92 Table 13: Bucket-specific vega RW
+                const vegaRW = BUCKET_RISK_WEIGHTS.vega[bucketId] || 0.55;
+                const vega1Y = (parseFloat(trade.Vega1Y) || 0) * vegaRW;
+                const vega3Y = (parseFloat(trade.Vega3Y) || 0) * vegaRW;
+                const vega5Y = (parseFloat(trade.Vega5Y) || 0) * vegaRW;
+                const vega10Y = (parseFloat(trade.Vega10Y) || 0) * vegaRW;
                 
                 if (!buckets[bucket].vegaWS[trade.Instrument]) {
                     buckets[bucket].vegaWS[trade.Instrument] = {};
@@ -681,50 +708,96 @@
             
             Object.keys(buckets).forEach(bucketId => {
                 const bucket = buckets[bucketId];
-                const tradesList = bucket.trades;
                 
-                // Delta
+                // ================================================================
+                // DELTA: Aggregate by risk factor (instrument) first
+                // ================================================================
+                const deltaByInstrument = {};
+                bucket.trades.forEach(trade => {
+                    const instrument = trade.Instrument;
+                    if (!deltaByInstrument[instrument]) {
+                        deltaByInstrument[instrument] = {
+                            instrument: instrument,
+                            ws: 0,
+                            sampleTrade: trade  // For correlation lookup
+                        };
+                    }
+                    deltaByInstrument[instrument].ws = bucket.deltaWS[instrument];  // Already netted
+                });
+                
+                const instruments = Object.values(deltaByInstrument);
                 let deltaSum = 0;
-                for (let i = 0; i < tradesList.length; i++) {
-                    for (let j = 0; j < tradesList.length; j++) {
-                        const rho = getIntraBucketCorrelation(tradesList[i], tradesList[j]) * scenarioMultiplier;
-                        const ws_i = bucket.deltaWS[tradesList[i].Instrument];
-                        const ws_j = bucket.deltaWS[tradesList[j].Instrument];
+                for (let i = 0; i < instruments.length; i++) {
+                    for (let j = 0; j < instruments.length; j++) {
+                        const rho = getIntraBucketCorrelation(instruments[i].sampleTrade, instruments[j].sampleTrade, bucketId) * scenarioMultiplier;
+                        const ws_i = instruments[i].ws;
+                        const ws_j = instruments[j].ws;
                         deltaSum += rho * ws_i * ws_j;
                     }
                 }
                 intraBucketCharges.delta[bucketId] = Math.sqrt(Math.max(0, deltaSum));
                 
-                // Vega with maturity correlation
-                let vegaSum = 0;
+                // ================================================================
+                // VEGA: Aggregate by risk factor (instrument × tenor) first
+                // ================================================================
+                const vegaByInstrumentTenor = {};
                 const tenors = ['1Y', '3Y', '5Y', '10Y'];
                 
-                for (let i = 0; i < tradesList.length; i++) {
-                    for (let j = 0; j < tradesList.length; j++) {
-                        const rhoUnderlying = getIntraBucketCorrelation(tradesList[i], tradesList[j]);
-                        
-                        for (let ti = 0; ti < tenors.length; ti++) {
-                            for (let tj = 0; tj < tenors.length; tj++) {
-                                const rhoMaturity = getVegaMaturityCorrelation(tenors[ti], tenors[tj]);
-                                const rho = rhoUnderlying * rhoMaturity * scenarioMultiplier;
-                                
-                                const ws_i = bucket.vegaWS[tradesList[i].Instrument][tenors[ti]];
-                                const ws_j = bucket.vegaWS[tradesList[j].Instrument][tenors[tj]];
-                                
-                                vegaSum += rho * ws_i * ws_j;
-                            }
+                bucket.trades.forEach(trade => {
+                    const instrument = trade.Instrument;
+                    tenors.forEach(tenor => {
+                        const key = `${instrument}_${tenor}`;
+                        if (!vegaByInstrumentTenor[key]) {
+                            vegaByInstrumentTenor[key] = {
+                                instrument: instrument,
+                                tenor: tenor,
+                                ws: 0,
+                                sampleTrade: trade
+                            };
                         }
+                        vegaByInstrumentTenor[key].ws = bucket.vegaWS[instrument][tenor];  // Already netted
+                    });
+                });
+                
+                const instrumentTenors = Object.values(vegaByInstrumentTenor).filter(it => it.ws !== 0);
+                let vegaSum = 0;
+                for (let i = 0; i < instrumentTenors.length; i++) {
+                    for (let j = 0; j < instrumentTenors.length; j++) {
+                        const rhoUnderlying = getIntraBucketCorrelation(instrumentTenors[i].sampleTrade, instrumentTenors[j].sampleTrade, bucketId);
+                        const rhoMaturity = getVegaMaturityCorrelation(instrumentTenors[i].tenor, instrumentTenors[j].tenor);
+                        const rho = rhoUnderlying * rhoMaturity * scenarioMultiplier;
+                        
+                        const ws_i = instrumentTenors[i].ws;
+                        const ws_j = instrumentTenors[j].ws;
+                        
+                        vegaSum += rho * ws_i * ws_j;
                     }
                 }
                 intraBucketCharges.vega[bucketId] = Math.sqrt(Math.max(0, vegaSum));
                 
-                // Curvature
+                // ================================================================
+                // CURVATURE: Aggregate by risk factor (instrument) first
+                // ================================================================
+                const curvatureByInstrument = {};
+                bucket.trades.forEach(trade => {
+                    const instrument = trade.Instrument;
+                    if (!curvatureByInstrument[instrument]) {
+                        curvatureByInstrument[instrument] = {
+                            instrument: instrument,
+                            ws: 0,
+                            sampleTrade: trade
+                        };
+                    }
+                    curvatureByInstrument[instrument].ws = bucket.curvatureWS[instrument];  // Already netted
+                });
+                
+                const curvatureInstruments = Object.values(curvatureByInstrument);
                 let curvatureSum = 0;
-                for (let i = 0; i < tradesList.length; i++) {
-                    for (let j = 0; j < tradesList.length; j++) {
-                        const rho = getIntraBucketCorrelation(tradesList[i], tradesList[j]) * scenarioMultiplier;
-                        const ws_i = bucket.curvatureWS[tradesList[i].Instrument];
-                        const ws_j = bucket.curvatureWS[tradesList[j].Instrument];
+                for (let i = 0; i < curvatureInstruments.length; i++) {
+                    for (let j = 0; j < curvatureInstruments.length; j++) {
+                        const rho = getIntraBucketCorrelation(curvatureInstruments[i].sampleTrade, curvatureInstruments[j].sampleTrade, bucketId) * scenarioMultiplier;
+                        const ws_i = curvatureInstruments[i].ws;
+                        const ws_j = curvatureInstruments[j].ws;
                         curvatureSum += rho * ws_i * ws_j;
                     }
                 }
@@ -1153,7 +1226,7 @@
                                     
                                     const instruments = bucket.trades.map(t => t.Instrument);
                                     const tenors = ['1Y', '3Y', '5Y', '10Y'];
-                                    const vegaRW = BUCKET_RISK_WEIGHTS.vega;
+                                    const vegaRW = BUCKET_RISK_WEIGHTS.vega[parseInt(id)] || 0.55;
                                     
                                     // Calculate net weighted vega per instrument-tenor combination
                                     const instrumentTenorNets = {};
@@ -1207,7 +1280,7 @@
                                                                     </td>
                                                                     {bucket.trades.flatMap((trade2) => 
                                                                         tenors.map((tenor2) => {
-                                                                            const rhoUnderlying = getIntraBucketCorrelation(trade1, trade2);
+                                                                            const rhoUnderlying = getIntraBucketCorrelation(trade1, trade2, id);
                                                                             const rhoMaturity = getVegaMaturityCorrelation(tenor1, tenor2);
                                                                             const rho = rhoUnderlying * rhoMaturity * SCENARIOS[scenario];
                                                                             
@@ -1299,7 +1372,7 @@
                                                                     {formatCurrency(instrumentNets[trade1.Instrument])}
                                                                 </td>
                                                                 {bucket.trades.map((trade2) => {
-                                                                    const rho = getIntraBucketCorrelation(trade1, trade2) * SCENARIOS[scenario];
+                                                                    const rho = getIntraBucketCorrelation(trade1, trade2, id) * SCENARIOS[scenario];
                                                                     
                                                                     return (
                                                                         <td 
@@ -1398,7 +1471,7 @@
                                                                     {formatCurrency(instrumentNets[trade1.Instrument])}
                                                                 </td>
                                                                 {bucket.trades.map((trade2) => {
-                                                                    const rho = getIntraBucketCorrelation(trade1, trade2) * SCENARIOS[scenario];
+                                                                    const rho = getIntraBucketCorrelation(trade1, trade2, id) * SCENARIOS[scenario];
                                                                     
                                                                     return (
                                                                         <td 
@@ -1693,7 +1766,7 @@
                                             return <div style={{padding: '2rem', textAlign: 'center'}}>No trades found in this bucket.</div>;
                                         }
                                         
-                                        const rw = BUCKET_RISK_WEIGHTS.vega;
+                                        const rw = BUCKET_RISK_WEIGHTS.vega[parseInt(selectedBucket)] || 0.55;
                                         
                                         // Calculate net vega by instrument and tenor
                                         const instrumentNets = {};
